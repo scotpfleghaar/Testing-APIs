@@ -1,3 +1,6 @@
+/*jslint browser: true*/
+/*global $, jQuery*/
+
 function loadData() {
 
     var $body = $('body'),
@@ -11,33 +14,56 @@ function loadData() {
     $nytElem.text("");
 
     // load streetview
-    var street = $('#street').val();
-    var city = $('#city').val();
-    var address = street + ', ' + city;
-    var streeturl = '<img class="bgimg" src="http://maps.googleapis.com/maps/api/streetview?size=600x300&location=' + address + '">';
+    var street = $('#street').val(),
+        city = $('#city').val(),
+        address = street + ', ' + city,
+        streeturl = '<img class="bgimg" src="http://maps.googleapis.com/maps/api/streetview?size=600x300&location=' + address + '">';
     $body.append(streeturl);
-    // YOUR CODE GOES HERE!
 
     //NYTIMES
-    // load nytimes
-    // obviously, replace all the "X"s with your own API key
-    var nytimesUrl = 'http://api.nytimes.com/svc/search/v2/articlesearch.json?q=' + city + '&sort=newest&api-key=537d9b4dfbed483b85a48da1d5c98345';
-    $.getJSON(nytimesUrl, function (data) {
 
-        $nytHeaderElem.text('New York Times Articles About ' + city);
+    var nytBaseUrl = 'http://api.nytimes.com/svc/search/v2/articlesearch.json?q=',
+        nytApiKey = '&api-key=537d9b4dfbed483b85a48da1d5c98345',
+        nytUrl = nytBaseUrl + city + '&sort=newest' + nytApiKey;
 
-        var articles = data.response.docs;
-        for (var i = 0; i < articles.length; i++) {
-            var article = articles[i];
-            $nytElem.append('<li class="article">' +
-                '<a href="' + article.web_url + '">' + article.headline.main + '</a>' +
-                '<p>' + article.snippet + '</p>' +
-                '</li>');
-        };
+    $.getJSON(nytUrl)
+        .done(function (data) {
+            $nytHeaderElem.text('New York Times Articles About ' + city);
+            $.each(data.response.docs, function () {
+                var articleLink = '<a href="' + this.web_url + '">' + this.headline.main + '</a>';
+                var articleLead = '<p>' + this.lead_paragraph + '</p>';
+                $nytElem.append('<li class="article">' + articleLink + articleLead + '</li>');
+            });
+        })
+        .fail(function () {
+            $nytHeaderElem.text('New York Times Articles Could Not Be Loaded');
+        });
 
-    }).fail(function (e) {
-        $nytHeaderElem.text('New York Times Articles Could Not Be Loaded');
-    });
+    // Wikipedia
+    var wikiUrl = 'https://en.wikipedia.org/w/api.php?action=opensearch&search=' +
+        city + '&format=json';
+
+    // Set a timeout of 8 seconds to get the Wikipedia articles
+    var wikiRequestTimeout = setTimeout(function () {
+        $wikiElem.text('failed to get wikipedia resources');
+    }, 8000);
+
+    $.ajax(wikiUrl, {
+            dataType: 'jsonp'
+        })
+        .done(function (data) {
+            var articleTitles = data[1],
+                articleUrls = data[3];
+
+            $.each(articleTitles, function (i, title) {
+                $wikiElem.append('<li><a href="' + articleUrls[i] + '">' + title + '</a></li>');
+            });
+
+            clearTimeout(wikiRequestTimeout);
+
+        });
+
+    return false;
 }
 
 $('#form-container').submit(loadData);
